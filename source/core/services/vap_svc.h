@@ -29,6 +29,8 @@ extern "C" {
 #include "wifi_base.h"
 #include "wifi_events.h"
 
+#include "wifi_supp.h"
+
 typedef struct wifi_ctrl wifi_ctrl_t;
 
 typedef enum {
@@ -36,6 +38,7 @@ typedef enum {
     vap_svc_type_public,
     vap_svc_type_mesh_gw,
     vap_svc_type_mesh_ext,
+    vap_svc_type_sta,
     vap_svc_type_max
 } vap_svc_type_t;
 
@@ -54,15 +57,28 @@ typedef int (* vap_svc_update_fn_t)(vap_svc_t *svc, unsigned int radio_index,
 typedef int (* vap_svc_event_fn_t)(vap_svc_t *svc, wifi_event_type_t type, wifi_event_subtype_t sub_type, vap_svc_event_t event, void *arg);
 typedef bool (* vap_svc_is_my_fn_t)(unsigned int vap_index);
 
-//sta connection 10 seconds retry
+/* STA mode related defines START */
+#define SCAN_INPROGRESS                        -2
+#define SCAN_ERR                               -1
+#define SCAN_SUCCESS                           0
+
+#define DWELL_TIME_PATH                        "/nvram/wifi_dwell_time"
+#define DEFAULT_DWELL_TIME_MS                  50
+
+#define STA_CONNECT_FAIL_THRESHOLD             10
+#define STA_SCAN_FAIL_THRESHOLD                10
+#define STA_MAX_DISCONNECT_ATTEMPT             2
+#define STA_PERIODIC_SCAN_TIMER                20000
+#define STA_PERIODIC_SCAN_TIMER_CONNECTED      STA_PERIODIC_SCAN_TIMER * 2
+#define STA_CONN_HAL_EVENT_TIMEOUT             10000
+/* STA mode related defines END */
+
 #define STA_CONN_RETRY_TIMEOUT                 9
 #define STA_MAX_CONNECT_ATTEMPT                2
-#define STA_MAX_DISCONNECT_ATTEMPT             2
+#define MAX_CONNECTION_ALGO_TIMEOUT            4 * 60 /* 4 minute */
 #define MAX_SCAN_RESULT_WAIT                   2
-// max connection algoritham timeout 4 minutes
-#define MAX_CONNECTION_ALGO_TIMEOUT            4 * 60
-#define EXT_CONNECT_ALGO_PROCESSOR_INTERVAL    1000
 
+#define EXT_CONNECT_ALGO_PROCESSOR_INTERVAL    1000
 #define EXT_SCAN_RESULT_TIMEOUT                4000
 #define EXT_SCAN_RESULT_WAIT_TIMEOUT           4000
 #define EXT_CONN_STATUS_IND_TIMEOUT            5000
@@ -89,6 +105,16 @@ typedef enum {
     connection_state_connected_scan_list,
     connection_state_disconnection_in_progress,
 } connection_state_t;
+
+typedef enum {
+    sta_state_init,
+    sta_state_init_done,
+    sta_state_scan_done,
+    sta_state_connecting,
+    sta_state_connected,
+    sta_state_removed,
+    sta_state_stop,
+} sta_state_t;
 
 typedef struct scan_result {
     wifi_bss_info_t      external_ap;
@@ -133,6 +159,18 @@ typedef struct {
     bool                   is_started;
 }__attribute__((packed)) vap_svc_ext_t;
 
+typedef struct {
+    sta_state_t            conn_state;
+    signed char            scan_retry_cnt;
+    bool                   last_scan_done;
+    bss_candidate_t        try_connect_with_bss;
+    bss_candidate_t        last_connected_bss;
+    uint32_t               connected_vap_index;
+    int                    sta_connect_timer_id;
+    int                    periodic_scan_timer_id;
+    rdkb_wifi_supp_info_t  *p_wifi_supp_info;
+}__attribute__((packed)) vap_svc_sta_t;
+
 typedef struct vap_svc {
     bool                     created;
     vap_svc_type_t           type;
@@ -140,6 +178,7 @@ typedef struct vap_svc {
     wifi_platform_property_t *prop;
     union {
               vap_svc_ext_t   ext;
+              vap_svc_sta_t   sta;
           } u;
     vap_svc_start_fn_t       start_fn;
     vap_svc_stop_fn_t        stop_fn;
@@ -182,11 +221,20 @@ extern int vap_svc_mesh_ext_update(vap_svc_t *svc, unsigned int radio_index,
 extern int vap_svc_mesh_ext_event(vap_svc_t *svc, wifi_event_type_t type, wifi_event_subtype_t sub_type, vap_svc_event_t event, void *arg);
 extern bool vap_svc_is_mesh_ext(unsigned int vap_index);
 
+// station service
+extern int vap_svc_sta_start(vap_svc_t *svc, unsigned int radio_index, wifi_vap_info_map_t *map);
+extern int vap_svc_sta_stop(vap_svc_t *svc, unsigned int radio_index, wifi_vap_info_map_t *map);
+extern int vap_svc_sta_update(vap_svc_t *svc, unsigned int radio_index,
+    wifi_vap_info_map_t *map, rdk_wifi_vap_info_t *rdk_vap_info);
+extern int vap_svc_sta_event(vap_svc_t *svc, wifi_event_type_t type, wifi_event_subtype_t sub_type, vap_svc_event_t event, void *arg);
+extern bool vap_svc_is_sta(unsigned int vap_index);
+
 vap_svc_t *get_svc_by_type(wifi_ctrl_t *ctrl, vap_svc_type_t type);
 vap_svc_t *get_svc_by_vap_index(wifi_ctrl_t *ctrl, unsigned int vap_index);
 vap_svc_t *get_svc_by_name(wifi_ctrl_t *ct, char *vap_name);
 
 int process_ext_connect_algorithm(vap_svc_t *svc);
+int process_sta_connect_algorithm(vap_svc_t *svc);
 
 #ifdef __cplusplus
 }

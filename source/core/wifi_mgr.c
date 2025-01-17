@@ -249,6 +249,7 @@ int init_wifimgr()
         wifi_util_info_print(WIFI_MGR,"WiFiDB FRcase factory_reset is false\n");
     }
 
+
     if (init_wifi_ctrl(&g_wifi_mgr.ctrl) != 0) {
         wifi_util_error_print(WIFI_MGR,"%s: wifi ctrl init failed\n", __func__);
         return -1;
@@ -279,6 +280,8 @@ int init_wifimgr()
     }
 
     wifidb_init(get_wifidb_obj());
+
+    bus_get_network_mode(WIFI_DEVICE_MODE, &g_wifi_mgr.ctrl.network_mode);
 
     /* Initialize SSP loop */
     get_wifidml_obj()->desc.ssp_init_fn();
@@ -334,7 +337,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    bus_get_vap_init_parameter(WIFI_DEVICE_MODE, &g_wifi_mgr.ctrl.network_mode);
     if (start_wifimgr() != 0) {
         wifi_util_error_print(WIFI_MGR,"%s: wifimgr start failed\n", __func__);
         return -1;
