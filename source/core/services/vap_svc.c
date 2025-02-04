@@ -71,6 +71,14 @@ int svc_init(vap_svc_t *svc, vap_svc_type_t type)
             svc->is_my_fn = vap_svc_is_mesh_ext;
             break;
 
+        case vap_svc_type_sta:
+            svc->start_fn = vap_svc_sta_start;
+            svc->stop_fn = vap_svc_sta_stop;
+            svc->update_fn = vap_svc_sta_update;
+            svc->event_fn = vap_svc_sta_event;
+            svc->is_my_fn = vap_svc_is_sta;
+            break;
+
         case vap_svc_type_max:
             wifi_util_dbg_print(WIFI_CTRL,"%s:%d ctrl task service init event\n", __func__, __LINE__);
             break;
@@ -221,6 +229,7 @@ int vap_svc_start_stop(vap_svc_t *svc, bool enable)
 
     memset(tgt_vap_map, 0, sizeof(wifi_vap_info_map_t));
 
+
     for (i = 0; i < num_of_radios; i++) {
         vap_map = (wifi_vap_info_map_t *)get_wifidb_vap_map(i);
         rdk_vaps = get_wifidb_rdk_vaps(i);
@@ -233,6 +242,7 @@ int vap_svc_start_stop(vap_svc_t *svc, bool enable)
         memset(tgt_vap_map, 0, sizeof(wifi_vap_info_map_t));
         memset(tgt_rdk_vaps, 0, sizeof(tgt_rdk_vaps));
         for (j = 0; j < vap_map->num_vaps; j++) {
+
             if (svc->is_my_fn(vap_map->vap_array[j].vap_index) == false) {
                 continue;
             }
@@ -268,6 +278,9 @@ int vap_svc_start_stop(vap_svc_t *svc, bool enable)
 
             tgt_vap_map->num_vaps++;
         }
+
+	wifi_util_info_print(WIFI_CTRL, "%s:%d: Invoking wifi_hal_createVAP() for vap_name:%s, vap_mode:%d, radio_idx:%d, num_vaps:%d\n",
+            __func__, __LINE__, tgt_vap_map->vap_array[0].vap_name, tgt_vap_map->vap_array[0].vap_mode, i, tgt_vap_map->num_vaps);
 
         if (wifi_hal_createVAP(i, tgt_vap_map) != RETURN_OK) {
             wifi_util_error_print(WIFI_CTRL,"%s: wifi vap create failure: radio_index:%d\n",__FUNCTION__, i);
@@ -333,6 +346,9 @@ vap_svc_t *get_svc_by_name(wifi_ctrl_t *ct, char *vap_name)
         type = vap_svc_type_public;
     } else if (strstr(vap_name, "hotspot") != NULL) {
         type = vap_svc_type_public;
+    } else if ((strncmp(vap_name, "sta", strlen("sta")) == 0) ||
+              strncmp(vap_name, "mesh_sta", strlen("mesh_sta")) == 0) {
+        type = vap_svc_type_sta;
     } else if (strncmp(vap_name, "mesh_sta", strlen("mesh_sta")) == 0) {
         type = vap_svc_type_mesh_ext;
     } else if (strncmp(vap_name, "mesh_backhaul", strlen("mesh_backhaul")) == 0) {
