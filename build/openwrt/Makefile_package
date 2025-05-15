@@ -10,7 +10,7 @@ define Package/easymesh
   SECTION:=base
   CATEGORY:=Base system
   TITLE:=EasyMesh
-  DEPENDS:=+avro-c +libopenssl +cJSON +libev +libnl +libnl-genl +libnl-route +libuuid +libstdcpp 
+  DEPENDS:=+avro-c +libopenssl +cJSON +libev +libnl +libnl-genl +libnl-route +libuuid +libstdcpp +libmariadb
 endef
 
 define Package/easymesh/description
@@ -43,9 +43,9 @@ define Build/Compile
 	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR)/unified-wifi-mesh/build/openwrt/agent/  \
 		$(TARGET_CONFIGURE_OPTS)
 
-        echo "Compiling Easymesh CTRL..."
-        CFLAGS="$(TARGET_CPPFLAGS) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) $(STAGING_DIR)" \
-        $(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR)/unified-wifi-mesh/build/openwrt/ctrl/  \
+	echo "Compiling Easymesh CTRL..."
+	CFLAGS="$(TARGET_CPPFLAGS) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) $(STAGING_DIR)" \
+	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR)/unified-wifi-mesh/build/openwrt/ctrl/  \
 		$(TARGET_CONFIGURE_OPTS) $(TARGET_CPPFLAGS)
 endef
 
